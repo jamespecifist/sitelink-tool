@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+
+<title>Sitelink Pro Tool</title>
+
+<style>
+body {
+  font-family: 'Segoe UI';
+  background: linear-gradient(135deg,#1e3c72,#2a5298);
+  padding:20px;
+  color:white;
+}
+
+.box {
+  max-width:650px;
+  margin:auto;
+  background:#ffffff10;
+  padding:20px;
+  border-radius:15px;
+}
+
+textarea,input {
+  width:100%;
+  padding:10px;
+  margin:10px 0;
+  border-radius:8px;
+  border:none;
+}
+
+button {
+  padding:10px;
+  margin:5px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.generate {
+  width:100%;
+  background:#00c6ff;
+  font-weight:bold;
+}
+
+.copyBtn {
+  background:#00ffae;
+}
+
+.highlight {
+  background:#ff4d4d;
+  padding:2px 4px;
+  border-radius:4px;
+}
+
+.result {
+  margin-top:20px;
+  background:#00000030;
+  padding:15px;
+  border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+
+<h2>🚀 Sitelink Smart Tool</h2>
+
+<textarea id="sentence" placeholder="Enter sentence"></textarea>
+<input id="product" placeholder="Product name (optional)">
+<input id="customWords" placeholder="Custom words (best,top,etc)">
+
+<button class="generate" onclick="generate()">Generate</button>
+
+<div class="result">
+
+<p id="warning"></p>
+
+<h3>Clean Output</h3>
+
+<div style="display:flex;justify-content:space-between;">
+<p id="clean1"></p>
+<button class="copyBtn" onclick="copyText('clean1')">📋</button>
+</div>
+
+<div style="display:flex;justify-content:space-between;">
+<p id="clean2"></p>
+<button class="copyBtn" onclick="copyText('clean2')">📋</button>
+</div>
+
+<h3>Highlight Output</h3>
+<p id="hl1"></p>
+<p id="hl2"></p>
+
+<h3>Detected Words</h3>
+<p id="detected"></p>
+
+<h3>Auto Fix</h3>
+<p id="fix"></p>
+
+</div>
+</div>
+
+<script>
+
+function cap(w){
+  return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
+}
+
+// 🔥 BALANCED SPLIT
+function balancedSplit(words){
+  let bestSplit = {dl1:[], dl2:[], diff:999};
+
+  for(let i=1;i<words.length;i++){
+    let part1 = words.slice(0,i).join(" ");
+    let part2 = words.slice(i).join(" ");
+
+    if(part1.length<=35 && part2.length<=35){
+      let diff = Math.abs(part1.length - part2.length);
+
+      if(diff < bestSplit.diff){
+        bestSplit = {
+          dl1:words.slice(0,i),
+          dl2:words.slice(i),
+          diff
+        };
+      }
+    }
+  }
+
+  return bestSplit;
+}
+
+function process(line, productWords, customWords, highlight=false){
+  let articles=["a","an","the"];
+  let words=line.split(" ");
+  let res=[];
+  let found=[];
+
+  words.forEach((w,i)=>{
+    let low=w.toLowerCase();
+
+    if(productWords.includes(w)){
+      res.push(w);
+      return;
+    }
+
+    let f;
+
+    if(i===0 && articles.includes(low)) f=low.toUpperCase();
+    else if(articles.includes(low)) f=low;
+    else f=cap(w);
+
+    let changed = w!==f;
+    let upper = w[0]===w[0].toUpperCase();
+
+    if(low.endsWith("est") || customWords.includes(low)){
+      found.push(w);
+      if(highlight){
+        res.push(`<span class="highlight">${f}</span>`);
+        return;
+      }
+    }
+
+    if(highlight && changed && !upper){
+      res.push(`<span class="highlight">${f}</span>`);
+    }else{
+      res.push(f);
+    }
+  });
+
+  return {text:res.join(" "),found};
+}
+
+function copyText(id){
+  let t=document.getElementById(id).innerText;
+  t=t.replace(/^DL\d+\(\d+\): /,"");
+  navigator.clipboard.writeText(t);
+}
+
+function generate(){
+
+let sentence=document.getElementById("sentence").value.trim();
+let product=document.getElementById("product").value.trim();
+let customWords=document.getElementById("customWords").value
+.toLowerCase().split(",").map(x=>x.trim()).filter(x=>x);
+
+let warning="";
+if(!sentence.endsWith(".")) warning="⚠ End sentence with '.'";
+
+let words=sentence.split(" ");
+
+let split=balancedSplit(words);
+
+let dl1=split.dl1.join(" ");
+let dl2=split.dl2.join(" ");
+
+let productWords=product?product.split(" "):[];
+
+let c1=process(dl1,productWords,customWords,false);
+let c2=process(dl2,productWords,customWords,false);
+
+let h1=process(dl1,productWords,customWords,true);
+let h2=process(dl2,productWords,customWords,true);
+
+let detected=[...c1.found,...c2.found];
+
+let l1=c1.text.length;
+let l2=c2.text.length;
+let total=l1+l2;
+
+document.getElementById("warning").innerText=warning;
+
+document.getElementById("clean1").innerText=`DL1 (${l1}): ${c1.text}`;
+document.getElementById("clean2").innerText=`DL2 (${l2}): ${c2.text}`;
+
+document.getElementById("hl1").innerHTML=`DL1 (${l1}): ${h1.text}`;
+document.getElementById("hl2").innerHTML=`DL2 (${l2}): ${h2.text}`;
+
+document.getElementById("detected").innerText=
+detected.length?detected.join(", "):"No issues";
+
+document.getElementById("fix").innerText=
+sentence.split(" ").map(cap).join(" ") + ` (Total:${total})`;
+
+}
+
+</script>
+
+</body>
+</html>
